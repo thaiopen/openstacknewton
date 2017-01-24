@@ -114,8 +114,8 @@ cat /etc/sysconfig/network-scripts/ifcfg-enp0s9
 ```
 vagrant.exe ssh compute
 sudo su - 
-ifup enp0s8
-ifup enp0s9
+ifup eth1
+ifup eth2
 ```
 #### on controller
 ```
@@ -135,10 +135,10 @@ ssh root@compute "chronyc sources"
 ```
 packstack --gen-answer-file answerfile.txt
 cp answerfile.txt answerfile.txt.backup
-grep -o '^[^#]*' answerfile.txt
-vi /root/answer.txt
+grep -o '^[^#]*' answerfile.txt  > answerfile.txt.prod
 
-sed -i "s/10.0.2.15/192.168.10.10/g
+#change ip 
+sed -i "s/10.0.2.15/192.168.10.10/g  /root/answer.txt
 
 CONFIG_CONTROLLER_HOST=192.168.10.10
 CONFIG_COMPUTE_HOSTS=192.168.10.10,192.168.10.11
@@ -150,6 +150,9 @@ CONFIG_NTP_SERVERS=1.th.pool.ntp.org,1.asia.pool.ntp.org
 CONFIG_KEYSTONE_ADMIN_PW=password
 CONFIG_MARIADB_PW=mypassword1234
 CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=extnet:br-ex
-CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:enp0s8
+CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:eth1
 CONFIG_NEUTRON_ML2_TYPE_DRIVERS=vxlan,flat
+
+packstack --answer-file answerfile.txt.prod
+
 ```
