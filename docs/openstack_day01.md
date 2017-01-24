@@ -145,7 +145,7 @@ CONFIG_COMPUTE_HOSTS=192.168.10.10,192.168.10.11
 CONFIG_NETWORK_HOSTS=192.168.10.10
 CONFIG_PROVISION_DEMO=n
 CONFIG_CEILOMETER_INSTALL=n
-CONFIG_HORIZON_SSL=y
+CONFIG_HORIZON_SSL=n
 CONFIG_NTP_SERVERS=1.th.pool.ntp.org,1.asia.pool.ntp.org
 CONFIG_KEYSTONE_ADMIN_PW=password
 CONFIG_MARIADB_PW=mypassword1234
@@ -155,4 +155,77 @@ CONFIG_NEUTRON_ML2_TYPE_DRIVERS=vxlan,flat
 
 packstack --answer-file answerfile.txt.prod
 
+```
+
+## CLI Login
+```
+cd /root
+source  keystonerc_admin
+[root@controller ~(keystone_admin)]# openstack user list
++----------------------------------+---------+
+| ID                               | Name    |
++----------------------------------+---------+
+| 2bf9aad94e634d0189505a25941ffe21 | neutron |
+| 646b64e238744c64ae7e68bbf488174e | glance  |
+| 8adc886bb9084202a42ed874c6ff0af3 | swift   |
+| 99ee223b628341ff9ad3bf66af755a87 | nova    |
+| bd1790ac6e8c44e4a467916fba682973 | admin   |
+| d0ab666a13b64886bf678f38790b8666 | cinder  |
++----------------------------------+---------+
+```
+!! Get keystone version3   Project > Compute > Access & Security >  keystone v3
+
+## Add disk Cinder
+
+```
+# lsblk
+NAME                    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sda                       8:0    0   40G  0 disk
+├─sda1                    8:1    0    1M  0 part
+├─sda2                    8:2    0    1G  0 part /boot
+└─sda3                    8:3    0   39G  0 part
+  ├─VolGroup00-LogVol00 253:0    0 37.5G  0 lvm  /
+  └─VolGroup00-LogVol01 253:1    0  1.5G  0 lvm  [SWAP]
+sdb                       8:16   0   20G  0 disk
+loop0                     7:0    0    2G  0 loop /srv/node/swiftloopback
+loop1                     7:1    0 20.6G  0 loop
+[root@controller ~]# ls /dev/lo
+log           loop0         loop1         loop-control
+```
+
+```
+# fdisk /dev/sda 
+n
+p 
+1
+
+
+w 
+
+```
+```
+# lsblk
+NAME                    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sda                       8:0    0   40G  0 disk
+├─sda1                    8:1    0    1M  0 part
+├─sda2                    8:2    0    1G  0 part /boot
+└─sda3                    8:3    0   39G  0 part
+  ├─VolGroup00-LogVol00 253:0    0 37.5G  0 lvm  /
+  └─VolGroup00-LogVol01 253:1    0  1.5G  0 lvm  [SWAP]
+sdb                       8:16   0   20G  0 disk
+└─sdb1                    8:17   0   20G  0 part
+loop0                     7:0    0    2G  0 loop /srv/node/swiftloopback
+loop1                     7:1    0 20.6G  0 loop
+[root@controller ~]# pvcreate /dev/sdb1
+  Physical volume "/dev/sdb1" successfully created.
+[root@controller ~]# vgcreate cinder-volumes /dev/sdb1
+  A volume group called cinder-volumes already exists.
+```
+# Add images
+```
+cd /root
+wget http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img
+source keystonerc_admin
+openstack image list
+openstack image create --disk-format qcow2 --container-format bare --public --file ./cirros-0.3.4-x86_64-disk.img cirros
 ```
