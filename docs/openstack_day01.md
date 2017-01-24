@@ -266,3 +266,20 @@ openstack image create --disk-format qcow2 --container-format bare --public --fi
 +--------------------------------------+--------+--------+
 
 ```
+## Network Namespace
+- create router attach to private network
+- use ``ip netns exec  <namespace>  bash``
+- chmod key permission to 600
+- ssh with option -i 
+```
+ip netns
+
+qrouter-794f2afb-603e-435d-9e6a-5b17b719ffdd
+qdhcp-53839b8e-6135-4f8e-bfe8-4951aa223e0c
+
+ip netns exec qrouter-794f2afb-603e-435d-9e6a-5b17b719ffdd bash
+ip a
+ping 10.0.0.103
+chmod 600 key.pem 
+ssh  -i key.pem centos@10.0.0.103
+```
