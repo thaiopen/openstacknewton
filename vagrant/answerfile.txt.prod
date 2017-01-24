@@ -246,7 +246,7 @@ CONFIG_SSL_CACERT_FILE=/etc/pki/tls/certs/selfcert.crt
 CONFIG_SSL_CACERT_KEY_FILE=/etc/pki/tls/private/selfkey.key
 
 # Enter the path to use to store generated SSL certificates in.
-CONFIG_SSL_CERT_DIR=~/packstackca/
+CONFIG_SSL_CERT_DIR=/root/packstackca/
 
 # Specify 'y' if you want Packstack to pregenerate the CA
 # Certificate.
@@ -551,7 +551,7 @@ CONFIG_CINDER_BACKEND=lvm
 # proof-of-concept installation of the Block Storage service (a file-
 # backed volume group is not suitable for production usage). ['y',
 # 'n']
-CONFIG_CINDER_VOLUMES_CREATE=y
+CONFIG_CINDER_VOLUMES_CREATE=n
 
 # Size of Block Storage volumes group. Actual volume size will be
 # extended with 3% more space for VG metadata. Remember that the size
@@ -1100,7 +1100,7 @@ CONFIG_MANILA_GLUSTERFS_PATH_TO_PRIVATE_KEY=
 CONFIG_MANILA_GLUSTERFS_GANESHA_SERVER_IP=
 
 # Specify 'y' to set up Horizon communication over https. ['y', 'n']
-CONFIG_HORIZON_SSL=n
+CONFIG_HORIZON_SSL=y
 
 # Secret key to use for Horizon Secret Encryption Key.
 CONFIG_HORIZON_SECRET_KEY=ad62e727001447b0841d584527f54876

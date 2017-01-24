@@ -103,12 +103,12 @@ ss -tulan | grep 22
 vagrant.exe ssh controller
 sudo su -
 ip link
-ifup enp0s8     (192.168.10.10)
-ifup enp0s9	   (192.168.20.10)
+ifup eth1     (192.168.10.10)
+ifup eth2	   (192.168.20.10)
 ip a
 
-cat /etc/sysconfig/network-scripts/ifcfg-enp0s8
-cat /etc/sysconfig/network-scripts/ifcfg-enp0s9
+cat /etc/sysconfig/network-scripts/ifcfg-eth1
+cat /etc/sysconfig/network-scripts/ifcfg-eth2
 ```
 #### On Compute
 ```
@@ -283,3 +283,58 @@ ping 10.0.0.103
 chmod 600 key.pem 
 ssh  -i key.pem centos@10.0.0.103
 ```
+## Set Horizon SSL
+```
+CONFIG_HORIZON_SSL=y
+ERROR : [Errno 2] No such file or directory: '/etc/pki/tls/certs/selfcert.crt'
+
+```
+#### 1 create key
+```
+# cd /root
+# mkdir keys
+# cd keys
+# openssl req -x509 -sha256 -newkey rsa:2048 -keyout selfkey.key -out selfcert.crt -days 1024 -nodes
+-subj "/C=TH/ST=Bangkok/L=Bankok/O=ITBAKERY/OU=IT Department/CN=controller.example.com/emailAddress=sawangpong@itbakery.net"
+
+Country Name (2 letter code) [XX]:TH
+State or Province Name (full name) []:Bangkok
+Locality Name (eg, city) [Default City]:Bangkok
+Organization Name (eg, company) [Default Company Ltd]:ITBAKERY
+Organizational Unit Name (eg, section) []:IT
+Common Name (eg, your name or your server's hostname) []:controller.example.com
+Email Address []:sawangpong@itbakery.net
+
+
+ls
+selfcert.crt  selfkey.key
+
+cp selfkey.key /etc/pki/tls/private/
+cp selfcert.crt /etc/pki/tls/certs
+
+mkdir -p /root/packstackca/certs/
+```
+
+#### 2 Change answerfile
+```
+CONFIG_SSL_CERT_DIR=/root/packstackca/
+CONFIG_SSL_CACERT_FILE=/etc/pki/tls/certs/selfcert.crt
+CONFIG_SSL_CACERT_KEY_FILE=/etc/pki/tls/private/selfkey.key
+
+```
+
+#### 3 create symlink
+- run answerfile again
+```
+ERROR : [Errno 2] No such file or directory: '/root/packstackca/certs/192.168.10.10ssl_vnc.crt'
+```
+
+- create link
+```
+mkdir -p /root/packstackca/certs/
+ln -s /etc/pki/tls/certs/ssl_vnc.crt  /root/packstackca/certs/192.168.10.10ssl_vnc.crt
+
+packstack --answer-file answerfile.txt.prod
+```
+
+
