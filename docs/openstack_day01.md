@@ -220,6 +220,7 @@ loop1                     7:1    0 20.6G  0 loop
   Physical volume "/dev/sdb1" successfully created.
 [root@controller ~]# vgcreate cinder-volumes /dev/sdb1
   A volume group called cinder-volumes already exists.
+  
 ```
 # Add images
 ```
@@ -228,4 +229,40 @@ wget http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img
 source keystonerc_admin
 openstack image list
 openstack image create --disk-format qcow2 --container-format bare --public --file ./cirros-0.3.4-x86_64-disk.img cirros
+
+# result
++------------------+------------------------------------------------------+
+| Field            | Value                                                |
++------------------+------------------------------------------------------+
+| checksum         | ee1eca47dc88f4879d8a229cc70a07c6                     |
+| container_format | bare                                                 |
+| created_at       | 2017-01-24T09:01:27Z                                 |
+| disk_format      | qcow2                                                |
+| file             | /v2/images/7383c70b-e7e7-414f-bc51-a451f6b77209/file |
+| id               | 7383c70b-e7e7-414f-bc51-a451f6b77209                 |
+| min_disk         | 0                                                    |
+| min_ram          | 0                                                    |
+| name             | cirros                                               |
+| owner            | 7082437614104975b878c85bf48bec1f                     |
+| protected        | False                                                |
+| schema           | /v2/schemas/image                                    |
+| size             | 13287936                                             |
+| status           | active                                               |
+| tags             |                                                      |
+| updated_at       | 2017-01-24T09:01:27Z                                 |
+| virtual_size     | None                                                 |
+| visibility       | public                                               |
++------------------+------------------------------------------------------+
+
+# cd /var/lib/glance/images/
+[root@controller images]# ls
+7383c70b-e7e7-414f-bc51-a451f6b77209
+
+# openstack image list
++--------------------------------------+--------+--------+
+| ID                                   | Name   | Status |
++--------------------------------------+--------+--------+
+| 7383c70b-e7e7-414f-bc51-a451f6b77209 | cirros | active |
++--------------------------------------+--------+--------+
+
 ```
