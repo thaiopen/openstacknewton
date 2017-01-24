@@ -37,6 +37,34 @@ vagrant box add centos/7
 vagrant init centos/7
 vagrant up
 ```
+
+## Vagrantfile
+```
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "centos/7"
+
+  config.vm.define :server1 do |node|
+     node.vm.network "private_network", ip: "192.168.33.10"
+     node.vm.provider :virtualbox do |vb|
+	 vb.name = "server1"
+	 vb.memory = 4096
+	 vb.cpus = 2
+     end	
+  end
+  config.vm.define :server2 do |node|
+     node.vm.network "private_network", ip: "192.168.33.11"
+     node.vm.provider :virtualbox do |vb|
+	 vb.name = "server2"
+	 vb.memory = 4096
+	 vb.cpus = 2
+     end	
+
+  end
+end
+```
 ## Vagrant deploy openstack
 #### On Controller
 ```
