@@ -65,6 +65,38 @@ Vagrant.configure("2") do |config|
   end
 end
 ```
+# Test command vagrant
+```
+# remote
+vagrant.exe ssh server1 -c "sudo ifup eth1"
+vagrant.exe ssh server2 -c "sudo ifup eth1"
+
+# ssh to server
+vagrant.exe ssh server1
+sudo su -
+passwd
+
+ifup eth1
+
+hostnamectl set-hostname server1.example.com
+echo "192.168.33.10 server1.example.com  server1"  >> /etc/hosts
+echo "192.168.33.11 server2.example.com  server2" >> /etc/hosts
+
+#gen key
+ssh-keygen -t rsa -b 4096
+
+#Fix hardening
+vi /etc/ssh/sshd_config    +78
+
+PasswordAuthentication  yes
+
+systemctl restart sshd
+
+#copy key
+ssh-copy-id  root@192.168.33.10 
+ssh-copy-id  root@192.168.33.10
+ss -tulan | grep 22
+```
 ## Vagrant deploy openstack
 #### On Controller
 ```

@@ -16,7 +16,7 @@ if [ -f /etc/chrony.conf ]; then
         sed -i '5i server 2.asia.pool.ntp.org iburst' /etc/chrony.conf
     else
         sed -i.orig '3,6d' /etc/chrony.conf
-        sed -i.bak '3i server 10.0.0.11 iburst' /etc/chrony.conf
+        sed -i.bak '3i server 192.168.10.10 iburst' /etc/chrony.conf
     fi
 fi
 sudo systemctl restart chronyd
