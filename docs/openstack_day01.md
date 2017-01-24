@@ -25,7 +25,17 @@ export PATH=".:/usr/local/bin:/mingw/bin:/bin:$PATH"
 $ cd /c/msys64/etc/
 https://releases.hashicorp.com/vagrant/1.9.1/vagrant_1.9.1.msi
 vim profile
+#add to last line
 export PATH=".:/usr/local/bin:/mingw/bin:/bin:/c/HashiCorp/Vagrant/bin/:$PATH"
+```
+## Test Vagrant
+```
+cd ~
+mkdir node
+cd node
+vagrant box add centos/7
+vagrant init centos/7
+vagrant up
 ```
 ## Vagrant deploy openstack
 #### On Controller
@@ -65,7 +75,7 @@ ssh root@compute "chronyc sources"
 ```
 packstack --gen-answer-file answerfile.txt
 cp answerfile.txt answerfile.txt.backup
-grep -o '^[^#]*' answerfile.txt > answerfile.txt.prod
+grep -o '^[^#]*' answerfile.txt
 vi /root/answer.txt
 
 sed -i "s/10.0.2.15/192.168.10.10/g
@@ -82,7 +92,4 @@ CONFIG_MARIADB_PW=mypassword1234
 CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=extnet:br-ex
 CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:enp0s8
 CONFIG_NEUTRON_ML2_TYPE_DRIVERS=vxlan,flat
-CONFIG_NOVA_NETWORK_PUBIF=enp0s8
-CONFIG_NOVA_NETWORK_PRIVIF=enp0s9
-CONFIG_NEUTRON_OVS_TUNNEL_IF=enp0s9
 ```
