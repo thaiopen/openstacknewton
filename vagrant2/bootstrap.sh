@@ -31,4 +31,4 @@ fi
 yum install -y python-openstackclient
 yum install -y openstack-selinux
 yum install -y openstack-utils
-yum install -y wget tmux vim
+yum install -y wget tmux vim openssl-devel
