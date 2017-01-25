@@ -321,6 +321,11 @@ CONFIG_SSL_CERT_DIR=/root/packstackca/
 CONFIG_SSL_CACERT_FILE=/etc/pki/tls/certs/selfcert.crt
 CONFIG_SSL_CACERT_KEY_FILE=/etc/pki/tls/private/selfkey.key
 
+CONFIG_VNC_SSL_CERT=/etc/pki/tls/certs/ssl_vnc.crt
+CONFIG_VNC_SSL_KEY=/etc/pki/tls/private/ssl_vnc.key
+CONFIG_HORIZON_SSL_CERT=/etc/pki/tls/certs/ssl_dashboard.crt
+CONFIG_HORIZON_SSL_KEY=/etc/pki/tls/private/ssl_dashboard.key
+CONFIG_HORIZON_SSL_CACERT=/etc/pki/tls/certs/selfcert.crt
 ```
 
 #### 3 create symlink

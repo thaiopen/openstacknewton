@@ -1,0 +1,89 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+$script = <<SCRIPT
+HOST=$(cat << HOST
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+192.168.10.10 controller.example.com controller
+192.168.10.11 network.example.com network
+192.168.10.12 compute.example.com compute
+192.168.10.13 storage.example.com storage
+192.168.10.14 client.example.com client
+HOST
+)
+
+echo "$HOST" > /etc/hosts
+echo "nameserver 8.8.8.8"  > /etc/resolv.conf
+
+systemctl start network
+systemctl enable network
+systemctl disable NetworkManager
+systemctl stop NetworkManager
+systemctl stop firewalld
+systemctl disable firewalld
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "centos/7"
+  config.vm.define :controller do |node|
+        node.vm.hostname = "controller.example.com"
+	node.vm.provision :shell, inline: "echo root:password | chpasswd"
+  	node.vm.network "private_network", ip: "192.168.10.10"
+  	node.vm.network "private_network", ip: "192.168.20.10"
+  	node.vm.network "private_network", ip: "192.168.30.10"
+  	node.vm.provider "virtualbox" do |vb|
+		vb.name = "controller"
+      	        vb.memory = "4096"
+      	        vb.cpus  = 2
+	end
+  	node.vm.provision "shell", inline: $script
+	node.vm.provision "shell", path: "bootstrap.sh"
+
+  end
+  config.vm.define :network do |node|
+        node.vm.hostname = "network.example.com"
+	node.vm.provision :shell, inline: "echo root:password | chpasswd"
+  	node.vm.network "private_network", ip: "192.168.10.11"
+  	node.vm.network "private_network", ip: "192.168.20.11"
+  	node.vm.network "private_network", ip: "192.168.30.11"
+  	node.vm.provider "virtualbox" do |vb|
+		vb.name = "network"
+      	        vb.memory = "4096"
+      	        vb.cpus  = 2
+  	end
+  	node.vm.provision "shell", inline: $script
+	node.vm.provision "shell", path: "bootstrap.sh"
+  end
+  config.vm.define :compute do |node|
+        node.vm.hostname = "compute.example.com"
+	node.vm.provision :shell, inline: "echo root:password | chpasswd"
+  	node.vm.network "private_network", ip: "192.168.10.12"
+  	node.vm.network "private_network", ip: "192.168.20.12"
+  	node.vm.network "private_network", ip: "192.168.30.12"
+  	node.vm.provider "virtualbox" do |vb|
+		vb.name = "compute"
+      	        vb.memory = "8192"
+      	        vb.cpus  = 2
+  	end
+  	node.vm.provision "shell", inline: $script
+	node.vm.provision "shell", path: "bootstrap.sh"
+  end
+ 
+  config.vm.define :client do |node|
+        node.vm.hostname = "client.example.com"
+	node.vm.provision :shell, inline: "echo root:password | chpasswd"
+  	node.vm.network "private_network", ip: "192.168.10.14"
+  	node.vm.network "private_network", ip: "192.168.20.14"
+  	node.vm.network "private_network", ip: "192.168.30.14"
+  	node.vm.provider "virtualbox" do |vb|
+		vb.name = "client"
+      	        vb.memory = "2048"
+      	        vb.cpus  = 1
+  	end
+  	node.vm.provision "shell", inline: $script
+	node.vm.provision "shell", path: "bootstrap.sh"
+  end
+
+
+end
