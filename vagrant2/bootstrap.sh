@@ -21,14 +21,3 @@ if [ -f /etc/chrony.conf ]; then
 fi
 sudo systemctl restart chronyd
 
-# Set Repository
-yum install -y epel-release
-yum install -y https://www.rdoproject.org/repos/rdo-release.rpm
-yum update -y
-if [ $(hostname -s) = "controller" ]; then
-    yum install -y openstack-packstack
-fi
-yum install -y python-openstackclient
-yum install -y openstack-selinux
-yum install -y openstack-utils
-yum install -y wget tmux vim openssl-devel

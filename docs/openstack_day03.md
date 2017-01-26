@@ -1,92 +1,106 @@
-#Build Openstack
+#!/bin/bash
+## On Controller
+```
+yum install -y epel-release
+yum install -y https://rdoproject.org/repos/rdo-release.rpm 
+yum install -y crudini
+yum install -y python-openstackclient
+yum install -y openstack-selinux
+yum upgrade -y 
+```
+## Security
+create password
 ```
 for i in ROOT_DBPASS ADMIN_PASS CINDER_DBPASS CINDER_PASS DASH_DBPASS  \
-DEMO_PASS GLANCE_DBPASS GLANCE_PASS KEYSTONE_DBPASS NEUTRON_DBPASS NEUTRON_PASS \ 
+DEMO_PASS GLANCE_DBPASS GLANCE_PASS KEYSTONE_DBPASS NEUTRON_DBPASS NEUTRON_PASS \
 NOVA_DBPASS NOVA_PASS  RABBIT_PASS; do echo "export $i=$(openssl rand -hex 10)" >> password.txt ;done
-```
 
+cp password.txt password.txt.orig
 ```
-[root@controller ~]# cat password.txt
-export ROOT_DBPASS=eb8667805b512ea32c17
-export ADMIN_PASS=34a40917f0b5c14d0d36
-export CINDER_DBPASS=bb542f421fb3e82cb963
-export CINDER_PASS=32042cf4538d88bbfe81
-export DASH_DBPASS=265aea2dc4347aa6594c
-export DEMO_PASS=7be794e716af532ab0c0
-export GLANCE_DBPASS=36c42dd8dc2c2e627bdd
-export GLANCE_PASS=a559d37a0b339df09733
-export KEYSTONE_DBPASS=c78dd5b934dde9c78d1f
-export NEUTRON_DBPASS=4437b0907473c636475a
-export NEUTRON_PASS=846eba05ffe6f90fe13e
-export NOVA_DBPASS=c68593bb1ae83dfce9c3
-export NOVA_PASS=e921884b74c7417beba3
-export RABBIT_PASS=f86b659dc9fad20a9194
+## set ~/.bash_profile
 ```
-```
-export PATH
+vi ~/.bash_profile
+
 source /root/password.txt
 echo $ROOT_DBPASS
 alias db="mysql -uroot -p$ROOT_DBPASS"
 ```
-## 1 Add database user
+## Install mysql 
 ```
+yum install mariadb mariadb-server python2-PyMySQL -y
+
+vi /etc/my.cnf.d/openstack.cnf 
+[mysqld]
+bind-address = 192.168.10.10
+
+default-storage-engine = innodb
+innodb_file_per_table
+max_connections = 4096
+collation-server = utf8_general_ci
+character-set-server = utf8
+```
+
+```
+systemctl start mariadb
+systemctl enable mariadb
+
+mysql_secure_installation 
+```
+## Install rabbitmq
+```
+yum install epel-release -y
+yum install rabbitmq-server -y
+systemctl enable rabbitmq-server.service
+systemctl start rabbitmq-server.service
+
+rabbitmqctl add_user openstack $RABBIT_PASS
+rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+```
+## Install Memcache
+```
+yum install memcached python-memcached
+systemctl enable memcached.service
+systemctl start memcached.service
+```
+## Create database
+```
+db -e "CREATE DATABASE keystone;"
 db -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '$KEYSTONE_DBPASS';"
 db -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '$KEYSTONE_DBPASS';"
 db -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'192.168.10.10' IDENTIFIED BY '$KEYSTONE_DBPASS';"
+```
+## install Apache mod_wsgi
+``` 
+yum install -y openstack-keystone httpd mod_wsgi -y 
 
-## 2 Install package
-```
-yum install openstack-keystone httpd mod_wsgi
-
-yum install openstack-utils
-```
-## 3 config
-```
 keystonconf=/etc/keystone/keystone.conf
 crudini --set $keystonconf database connection mysql+pymysql://keystone:$KEYSTONE_DBPASS@controller/keystone
 crudini --set $keystonconf token provider fernet
-```
-## 4 Sync Database
-```
-su -s /bin/sh -c "keystone-manage db_sync" keystone
-```
-cat /etc/password
-tail -f /var/log/keystone/keystone.log
 
-## Fenet
-```
+su -s /bin/sh -c "keystone-manage db_sync" keystone
+
 keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
 keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
-```
-
-## Bootstrap 
-```
-echo $ADMIN_PASS
 keystone-manage bootstrap --bootstrap-password $ADMIN_PASS \
   --bootstrap-admin-url http://controller:35357/v3/ \
   --bootstrap-internal-url http://controller:35357/v3/ \
   --bootstrap-public-url http://controller:5000/v3/ \
   --bootstrap-region-id RegionOne
+  
+```
+## config http and wsgi
+```
+vi /etc/httpd/conf/httpd.conf
+ServerName controller
+
+ln -s /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/
+
+systemctl enable httpd.service
+systemctl start httpd.service
 ```
 
-## Configure the Apache HTTP server
+## Configure the administrative account
 ```
-/etc/httpd/conf/httpd.conf 
-ServerName controller
-ln -s /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/
-systemctl enable httpd
-systemctl start httpd
-ss -tulan | grep 5000
-ss -tulan | grep 35357
-```
-## create admin_rc in /root
-```
-unset OS_USERNAME
-unset OS_PASSWORD
-unset OS_PROJECT_NAME
-unset OS_USER_DOMAIN_NAME
-unset OS_AUTH_URL
-unset OS_IDENTITY_API_VERSION
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_PASS
 export OS_PROJECT_NAME=admin
@@ -96,118 +110,50 @@ export OS_AUTH_URL=http://controller:35357/v3
 export OS_IDENTITY_API_VERSION=3
 ```
 
+## Create a domain, projects, users, and roles
+```
+
 openstack project create --domain default --description "Service Project" service
+openstack project create --domain default --description "Demo Project" demo
+openstack user create --domain default --password-prompt demo
+openstack role create user
+openstack role add --project demo --user demo user
 ```
-[root@controller ~]# systemctl start httpd
-[root@controller ~]# openstack project create --domain default --description "Service Project"  service
-+-------------+----------------------------------+
-| Field       | Value                            |
-+-------------+----------------------------------+
-| description | Service Project                  |
-| domain_id   | default                          |
-| enabled     | True                             |
-| id          | 316d7b045b4f4ae7a955b47e2a5d302c |
-| is_domain   | False                            |
-| name        | service                          |
-| parent_id   | default                          |
-+-------------+----------------------------------+
-
-[root@controller ~]# openstack project create --domain default --description "Demo Project" demo
-+-------------+----------------------------------+
-| Field       | Value                            |
-+-------------+----------------------------------+
-| description | Demo Project                     |
-| domain_id   | default                          |
-| enabled     | True                             |
-| id          | d4684bdc03ac4a89acfe04ce0f08817d |
-| is_domain   | False                            |
-| name        | demo                             |
-| parent_id   | default                          |
-+-------------+----------------------------------+
-
-[root@controller ~]# openstack user create --domain default --password-prompt demo
-User Password:
-Repeat User Password:
-+---------------------+----------------------------------+
-| Field               | Value                            |
-+---------------------+----------------------------------+
-| domain_id           | default                          |
-| enabled             | True                             |
-| id                  | 6240c4a5580047e8be08d90fb3123b56 |
-| name                | demo                             |
-| password_expires_at | None                             |
-+---------------------+----------------------------------+
-
-[root@controller ~]# openstack role create user
-+-----------+----------------------------------+
-| Field     | Value                            |
-+-----------+----------------------------------+
-| domain_id | None                             |
-| id        | 4a695e2598a3462285354d23588bf084 |
-| name      | user                             |
-+-----------+----------------------------------+
-
+## verify
 ```
-```
-2017-01-25 08:56:46.208 15337 INFO keystone.cmd.cli [req-8a63237b-b2c2-4013-abe3-90ef1fa5c
-08a - - - - -] Created role admin
-2017-01-25 08:56:46.219 15337 INFO keystone.cmd.cli [req-8a63237b-b2c2-4013-abe3-90ef1fa5c
-08a - - - - -] Granted admin on admin to user admin.
-2017-01-25 08:56:46.229 15337 INFO keystone.cmd.cli [req-8a63237b-b2c2-4013-abe3-90ef1fa5c
-08a - - - - -] Created region RegionOne
-```
-```
-[root@controller ~]# openstack role add --project demo --user demo user
-```
-
-## Verify operation
-
-/etc/keystone/keystone-paste.ini 
-
 unset OS_AUTH_URL OS_PASSWORD
-
 openstack --os-auth-url http://controller:35357/v3 \
   --os-project-domain-name Default --os-user-domain-name Default \
   --os-project-name admin --os-username admin token issue
-
-
-[root@controller ~]# openstack --os-auth-url http://controller:35357/v3 \
->   --os-project-domain-name Default --os-user-domain-name Default \
->   --os-project-name admin --os-username admin token issue
-Password:
-+------------+------------------------------------------------------------------------------------------+
-| Field      | Value                                                                                    |
-+------------+------------------------------------------------------------------------------------------+
-| expires    | 2017-01-25 10:37:14+00:00                                                                |
-| id         | gAAAAABYiHHKsR34xQB6WqbU17-grz5CvRiJ6RY6o93fgwRVi4hEvqEd3ypUW47lSaUTa8zfX8KF1adYHeb4DUEI |
-|            | f86-MNjYjkBVStgTgDDy-JRamw2do5BPK1s6hw1L7qrs4j4s-uQokR6gFCZ6qG_NhX14WguWRJQve-           |
-|            | hCihUUbkPPtQgYn5w                                                                        |
-| project_id | 7af7520ae92047fb87722fc7c58d8951                                                         |
-| user_id    | 897a748e344f45a8a5d06d2398c3c24b                                                         |
-+------------+------------------------------------------------------------------------------------------+
-
-openstack --os-auth-url http://controller:5000/v3 \
-  --os-project-domain-name Default --os-user-domain-name Default \
-  --os-project-name demo --os-username demo token issue
-
+  
 ```
-[root@controller ~]# openstack --os-auth-url http://controller:5000/v3 \
->   --os-project-domain-name Default --os-user-domain-name Default \
->   --os-project-name demo --os-username demo token issue
-Password:
-+------------+------------------------------------------------------------------------------------------+
-| Field      | Value                                                                                    |
-+------------+------------------------------------------------------------------------------------------+
-| expires    | 2017-01-25 10:44:42+00:00                                                                |
-| id         | gAAAAABYiHOKQS-QjpsAofkK-mp3nuOQkoFWREvegBRvdkQKZxxy0MFpaFNQbzSEv1CptHEEXKc5LEL5LOflU9th |
-|            | Td6wYOpTEFBNTd56mQ7EnUQgD-MF_34bqyx-hsmZpVBPhFrn1C6Vi5vh_gwNvcWqIAuU-                    |
-|            | IQmPH4pNZNhf0jYSywQpGlbZ_c                                                               |
-| project_id | d4684bdc03ac4a89acfe04ce0f08817d                                                         |
-| user_id    | 6240c4a5580047e8be08d90fb3123b56                                                         |
-+------------+------------------------------------------------------------------------------------------+
+## Create
+```
+cat << EOF > admin-openrc
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_USER_DOMAIN_NAME=Default
+export OS_PROJECT_NAME=admin
+export OS_USERNAME=admin
+export OS_PASSWORD=$ADMIN_PASS
+export OS_AUTH_URL=http://controller:35357/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_IMAGE_API_VERSION=2
+EOF
+```
+```
+cat << EOF > demo-openrc
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_USER_DOMAIN_NAME=Default
+export OS_PROJECT_NAME=demo
+export OS_USERNAME=demo
+export OS_PASSWORD=$DEMO_PASS
+export OS_AUTH_URL=http://controller:5000/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_IMAGE_API_VERSION=2
+EOF
 ```
 
-## DB
+## Install Image on Controller
 ```
 db -e "CREATE DATABASE glance;"
 echo $GLANCE_DBPASS
@@ -215,53 +161,24 @@ echo $GLANCE_DBPASS
 db -e "GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY '$GLANCE_DBPASS';"
 db -e "GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY '$GLANCE_DBPASS';"
 db -e "GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'192.168.10.10' IDENTIFIED BY '$GLANCE_DBPASS';"
-
-[root@controller ~]# mysql -uglance -p$GLANCE_DBPASS
-Welcome to the MariaDB monitor.  Commands end with ; or \g.
-Your MariaDB connection id is 41
-Server version: 10.1.18-MariaDB MariaDB Server
-
-Copyright (c) 2000, 2016, Oracle, MariaDB Corporation Ab and others.
-
-Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
-
-MariaDB [(none)]>
 ```
 
-$ . admin-openrc
-
-[root@controller ~]# openstack user create --domain default --password-prompt glance
-User Password:
-Repeat User Password:
-+---------------------+----------------------------------+
-| Field               | Value                            |
-+---------------------+----------------------------------+
-| domain_id           | default                          |
-| enabled             | True                             |
-| id                  | 6bd9904c11204594a2f538b856335595 |
-| name                | glance                           |
-| password_expires_at | None                             |
-+---------------------+----------------------------------+
-
-[root@controller ~]# openstack role add --project service --user glance admin
+create glance user
+```
+openstack user create --domain default --password-prompt glance
+openstack role add --project service --user glance admin
 openstack service create --name glance --description "OpenStack Image" image
-
-[root@controller ~]# openstack service create --name glance --description "OpenStack Image" image
-+-------------+----------------------------------+
-| Field       | Value                            |
-+-------------+----------------------------------+
-| description | OpenStack Image                  |
-| enabled     | True                             |
-| id          | 710cadce24664964ad943cf6ef591d25 |
-| name        | glance                           |
-| type        | image                            |
-+-------------+----------------------------------+
-
 
 openstack endpoint create --region RegionOne image public http://controller:9292
 openstack endpoint create --region RegionOne image internal http://controller:9292
 openstack endpoint create --region RegionOne image admin http://controller:9292
 
+```
+## install glance service
+```
+yum install openstack-glance
+
+```
 ## /etc/glance/glance-api.conf
 ```
 glanceconf=/etc/glance/glance-api.conf 
@@ -297,9 +214,8 @@ crudini --set $glance_registry keystone_authtoken password  $GLANCE_PASS
 
 crudini --set $glance_registry paste_deploy flavor  keystone
 ```
-
+```
 su -s /bin/sh -c "glance-manage db_sync" glance
-
 
 systemctl enable openstack-glance-api.service openstack-glance-registry.service
 systemctl start openstack-glance-api.service openstack-glance-registry.service
@@ -310,33 +226,8 @@ openstack image create "cirros" \
   --file cirros-0.3.4-x86_64-disk.img \
   --disk-format qcow2 --container-format bare \
   --public
-
-  [root@controller ~]# openstack image create "cirros" \
->   --file cirros-0.3.4-x86_64-disk.img \
->   --disk-format qcow2 --container-format bare \
->   --public
-+------------------+------------------------------------------------------+
-| Field            | Value                                                |
-+------------------+------------------------------------------------------+
-| checksum         | ee1eca47dc88f4879d8a229cc70a07c6                     |
-| container_format | bare                                                 |
-| created_at       | 2017-01-25T10:46:07Z                                 |
-| disk_format      | qcow2                                                |
-| file             | /v2/images/5c74436a-f0c7-4da1-85ff-c540af71ed18/file |
-| id               | 5c74436a-f0c7-4da1-85ff-c540af71ed18                 |
-| min_disk         | 0                                                    |
-| min_ram          | 0                                                    |
-| name             | cirros                                               |
-| owner            | 7af7520ae92047fb87722fc7c58d8951                     |
-| protected        | False                                                |
-| schema           | /v2/schemas/image                                    |
-| size             | 13287936                                             |
-| status           | active                                               |
-| tags             |                                                      |
-| updated_at       | 2017-01-25T10:46:08Z                                 |
-| virtual_size     | None                                                 |
-| visibility       | public                                               |
-+------------------+------------------------------------------------------+
+```
+--------------------------------------------------
 ## Nova
 db -e "CREATE DATABASE nova_api;"
 db -e "CREATE DATABASE nova;"
@@ -406,9 +297,9 @@ systemctl start openstack-nova-api.service \
   openstack-nova-conductor.service openstack-nova-novncproxy.service
 
 
+----------------------------------------
   
-  
-#nova compute
+#nova compute on computenode 
 
 yum install openstack-nova-compute
 echo $RABBIT_PASS
@@ -446,7 +337,7 @@ systemctl enable libvirtd.service openstack-nova-compute.service
 91e05d15281] AMQP server on 127.0.0.1:5672 is unreachable: [Errno 111] ECONNREFUSED.
  Trying again in 32 seconds. Client port: None
  
- 
+------------------------------------------------------------------------------- 
 # Install Networknode on Networknode
 ### Create neutron user in database
 
@@ -465,10 +356,10 @@ openstack endpoint create --region RegionOne network internal http://controller:
 openstack endpoint create --region RegionOne network admin http://controller:9696
 
 ##Networking Option 1: Provider networks
-On Networknode
+On Networknode  controller
 ```
 yum install openstack-neutron openstack-neutron-ml2 openstack-neutron-linuxbridge ebtables
-
+echo $NEUTRON_DBPASS
 neutronconf=/etc/neutron/neutron.conf
 crudini --set $neutronconf database connection mysql+pymysql://neutron:$NEUTRON_DBPASS@controller/neutron  
 crudini --set $neutronconf DEFAULT core_plugin ml2 core_plugin ml2
@@ -488,7 +379,6 @@ crudini --set $neutronconf keystone_authtoken password $NEUTRON_PASS
 
 crudini --set $neutronconf DEFAULT notify_nova_on_port_status_changes True
 crudini --set $neutronconf DEFAULT notify_nova_on_port_data_changes True
-crudini --set $neutronconf nova 
 
 crudini --set $neutronconf nova auth_url  http://controller:35357
 crudini --set $neutronconf nova auth_type  password
@@ -500,7 +390,11 @@ crudini --set $neutronconf nova username  nova
 crudini --set $neutronconf nova password  $NOVA_PASS
 
 crudini --set $neutronconf oslo_concurrency lock_path /var/lib/neutron/tmp
+```
 
+## Configure the Modular Layer 2 (ML2) plug-in
+```
+cp /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugins/ml2/ml2_conf.ini.orig
 ml2conf=/etc/neutron/plugins/ml2/ml2_conf.ini
 crudini --set $ml2conf ml2 type_drivers flat,vlan
 crudini --set $ml2conf ml2 tenant_network_types 
@@ -508,26 +402,37 @@ crudini --set $ml2conf ml2 mechanism_drivers linuxbridge
 crudini --set $ml2conf ml2 extension_drivers port_security
 crudini --set $ml2conf ml2_type_flat flat_networks provider
 crudini --set $ml2conf securitygroup enable_ipset  True
-
+```
+## Configure the Linux bridge agent
+``` 
+cp /etc/neutron/plugins/ml2/linuxbridge_agent.ini /etc/neutron/plugins/ml2/linuxbridge_agent.ini.orig
 bridgeconf=/etc/neutron/plugins/ml2/linuxbridge_agent.ini
 crudini --set $bridgeconf linux_bridge physical_interface_mappings provider:eth2
 crudini --set $bridgeconf vxlan enable_vxlan False
 crudini --set $bridgeconf securitygroup enable_security_group  True
 crudini --set $bridgeconf securitygroup firewall_driver neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
-
+```
+## Configure the DHCP agent
+```
+cp /etc/neutron/dhcp_agent.ini  /etc/neutron/dhcp_agent.ini.orig
 dhcpconf=/etc/neutron/dhcp_agent.ini 
 crudini --set $dhcpconf DEFAULT interface_driver neutron.agent.linux.interface.BridgeInterfaceDriver
 crudini --set $dhcpconf DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq
 crudini --set $dhcpconf DEFAULT enable_isolated_metadata True
+```
 
-## on controller
+## Configure the metadata agent
+```
+cp /etc/neutron/metadata_agent.ini /etc/neutron/metadata_agent.ini.orig
 metaconf=/etc/neutron/metadata_agent.ini 
 crudini --set $metaconf DEFAULT nova_metadata_ip  controller
 crudini --set $metaconf DEFAULT metadata_proxy_shared_secret  $METADATA_SECRET
+```
 
+## Configure the Compute service to use the Networking service
+```
+cp  /etc/nova/nova.conf /etc/nova/nova.conf.orig
 novaconf=/etc/nova/nova.conf 
-
-crudini --set $novaconf neutron
 crudini --set $novaconf neutron url  http://controller:9696
 crudini --set $novaconf neutron auth_url  http://controller:35357
 crudini --set $novaconf neutron auth_type  password
@@ -539,3 +444,212 @@ crudini --set $novaconf neutron username  neutron
 crudini --set $novaconf neutron password  $NEUTRON_PASS
 crudini --set $novaconf neutron service_metadata_proxy  True
 crudini --set $novaconf neutron metadata_proxy_shared_secret $METADATA_SECRET
+## Finalize installation
+```
+ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
+  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+systemctl restart openstack-nova-api.service
+```
+
+## option1
+```
+systemctl enable neutron-server.service \
+  neutron-linuxbridge-agent.service neutron-dhcp-agent.service \
+  neutron-metadata-agent.service
+systemctl start neutron-server.service \
+  neutron-linuxbridge-agent.service neutron-dhcp-agent.service \
+  neutron-metadata-agent.service
+
+ 
+```
+## Install and configure compute node
+The compute node handles connectivity and security groups for instances.
+config compute node
+```
+yum install openstack-neutron-linuxbridge ebtables ipset
+cp /etc/neutron/neutron.conf /etc/neutron/neutron.conf.orig
+
+neutronconf=/etc/neutron/neutron.conf
+crudini --set $neutronconf DEFAULT transport_url  rabbit://openstack:$RABBIT_PASS@controller
+crudini --set $neutronconf DEFAULT auth_strategy keystone
+crudini --set $neutronconf keystone_authtoken auth_uri  http://controller:5000
+crudini --set $neutronconf keystone_authtoken auth_url  http://controller:35357
+crudini --set $neutronconf keystone_authtoken memcached_servers  controller:11211
+crudini --set $neutronconf keystone_authtoken auth_type  password
+crudini --set $neutronconf keystone_authtoken project_domain_name  Default
+crudini --set $neutronconf keystone_authtoken user_domain_name  Default
+crudini --set $neutronconf keystone_authtoken project_name  service
+crudini --set $neutronconf keystone_authtoken username  neutron
+crudini --set $neutronconf keystone_authtoken password  $NEUTRON_PASS
+crudini --set $neutronconf oslo_concurrency lock_path /var/lib/neutron/tmp
+```
+## Networking Option 1: Provider networks
+```
+cp  /etc/neutron/plugins/ml2/linuxbridge_agent.ini /etc/neutron/plugins/ml2/linuxbridge_agent.ini.orig
+bridgeconf=/etc/neutron/plugins/ml2/linuxbridge_agent.ini 
+crudini --set $bridgeconf linux_bridge physical_interface_mappings provider:eth2
+crudini --set $bridgeconf vxlan enable_vxlan False
+crudini --set $bridgeconf securitygroup enable_security_group True 
+crudini --set $bridgeconf securitygroup firewall_driver neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+```
+## Configure the Compute service to use the Networking service
+```
+cp /etc/nova/nova.conf /etc/nova/nova.conf.orig
+novaconf=/etc/nova/nova.conf
+crudini --set $novaconf neutron url  http://controller:9696
+crudini --set $novaconf neutron auth_url  http://controller:35357
+crudini --set $novaconf neutron auth_type  password
+crudini --set $novaconf neutron project_domain_name  Default
+crudini --set $novaconf neutron user_domain_name  Default
+crudini --set $novaconf neutron region_name  RegionOne
+crudini --set $novaconf neutron project_name  service
+crudini --set $novaconf neutron username  neutron
+crudini --set $novaconf neutron password  $NEUTRON_PASS
+```
+
+```
+systemctl restart openstack-nova-compute.service
+
+systemctl enable neutron-linuxbridge-agent.service
+systemctl start neutron-linuxbridge-agent.service
+
+systemctl status neutron-linuxbridge-agent.service
+systemctl status openstack-nova-compute.service 
+```
+
+## verify from controler
+```
+. admin-openrc
+
+]# neutron ext-list
++---------------------------+---------------------------------+
+| alias                     | name                            |
++---------------------------+---------------------------------+
+| default-subnetpools       | Default Subnetpools             |
+| availability_zone         | Availability Zone               |
+| network_availability_zone | Network Availability Zone       |
+| binding                   | Port Binding                    |
+| agent                     | agent                           |
+| subnet_allocation         | Subnet Allocation               |
+| dhcp_agent_scheduler      | DHCP Agent Scheduler            |
+| tag                       | Tag support                     |
+| external-net              | Neutron external network        |
+| flavors                   | Neutron Service Flavors         |
+| net-mtu                   | Network MTU                     |
+| network-ip-availability   | Network IP Availability         |
+| quotas                    | Quota management support        |
+| provider                  | Provider Network                |
+| multi-provider            | Multi Provider Network          |
+| address-scope             | Address scope                   |
+| subnet-service-types      | Subnet service types            |
+| standard-attr-timestamp   | Resource timestamps             |
+| service-type              | Neutron Service Type Management |
+| extra_dhcp_opt            | Neutron Extra DHCP opts         |
+| standard-attr-revisions   | Resource revision numbers       |
+| pagination                | Pagination support              |
+| sorting                   | Sorting support                 |
+| security-group            | security-group                  |
+| rbac-policies             | RBAC Policies                   |
+| standard-attr-description | standard-attr-description       |
+| port-security             | Port Security                   |
+| allowed-address-pairs     | Allowed Address Pairs           |
+| project-id                | project_id field enabled        |
++---------------------------+---------------------------------+
+
+```
+
+## Dashboard
+```
+yum install openstack-dashboard
+cp /etc/openstack-dashboard/local_settings /etc/openstack-dashboard/local_settings.orig 
+vi /etc/openstack-dashboard/local_settings
+```
+
+```
+OPENSTACK_HOST = "controller"
+ALLOWED_HOSTS = ['*', ]
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+
+CACHES = {
+    'default': {
+         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+         'LOCATION': '127.0.0.1:11211',
+    }
+}
+
+OPENSTACK_KEYSTONE_URL = "http://%s:5000/v3" % OPENSTACK_HOST
+OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True
+
+OPENSTACK_API_VERSIONS = {
+    "identity": 3,
+    "image": 2,
+    "volume": 2,
+}
+
+OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "default"
+OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"
+
+OPENSTACK_NEUTRON_NETWORK = {
+    'enable_router': False,
+    'enable_quotas': False,
+    'enable_distributed_router': False,
+    'enable_ha_router': False,
+    'enable_lb': False,
+    'enable_firewall': False,
+    'enable_vpn': False,
+    'enable_fip_topology_check': False,
+}
+
+
+TIME_ZONE = "Asia/Bangkok"
+
+```
+
+```
+CACHES = {
+    'default': {
+         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+         'LOCATION': 'controller:11211',
+    }
+}
+
+[Thu Jan 26 12:06:54.364041 2017] [:error] [pid 2987]     "Unable to create a new session key. "
+[Thu Jan 26 12:06:54.364042 2017] [:error] [pid 2987] RuntimeError: Unable to create a new session key. It is likely that the cache is unavailable.
+
+```
+
+vim /etc/sysconfig/memcached
+systemctl restart httpd.service memcached.service
+
+export ADMIN_PASS=b10bf4ba3db10ffd5396
+
+## Create Network for provider
+```
+vi  /etc/neutron/plugins/ml2/ml2_conf.ini
+
+
+[ml2_type_flat]
+flat_networks = provider
+
+vi /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+
+[linux_bridge]
+physical_interface_mappings = provider:eth2
+
+$ neutron net-create public --shared --provider:physical_network provider   --provider:network_type flat
+
+$ neutron subnet-create public 192.168.20.0/24 --name public \
+  --allocation-pool start=192.168.20.100,end=192.168.20.200\
+  --dns-nameserver 8.8.8.8 --gateway 192.168.20.1
+```
+ref http://docs.openstack.org/liberty/install-guide-ubuntu/launch-instance-networks-public.html
+http://docs.openstack.org/mitaka/install-guide-ubuntu/launch-instance.html#launch-instance-networks
+
+
+
+
+
+
+

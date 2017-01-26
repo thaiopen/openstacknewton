@@ -26,7 +26,7 @@ CONFIG_CINDER_INSTALL=y
 
 # Specify 'y' to install OpenStack Shared File System (manila). ['y',
 # 'n']
-CONFIG_MANILA_INSTALL=n
+CONFIG_MANILA_INSTALL=y
 
 # Specify 'y' to install OpenStack Compute (nova). ['y', 'n']
 CONFIG_NOVA_INSTALL=y
@@ -42,7 +42,7 @@ CONFIG_HORIZON_INSTALL=y
 CONFIG_SWIFT_INSTALL=y
 
 # Specify 'y' to install OpenStack Metering (ceilometer). ['y', 'n']
-CONFIG_CEILOMETER_INSTALL=n
+CONFIG_CEILOMETER_INSTALL=y
 
 # Specify 'y' to install OpenStack Telemetry Alarming (Aodh). Note
 # Aodh requires Ceilometer to be installed as well. ['y', 'n']
@@ -57,10 +57,10 @@ CONFIG_GNOCCHI_INSTALL=y
 CONFIG_SAHARA_INSTALL=n
 
 # Specify 'y' to install OpenStack Orchestration (heat). ['y', 'n']
-CONFIG_HEAT_INSTALL=n
+CONFIG_HEAT_INSTALL=y
 
 # Specify 'y' to install OpenStack Database (trove) ['y', 'n']
-CONFIG_TROVE_INSTALL=n
+CONFIG_TROVE_INSTALL=y
 
 # Specify 'y' to install OpenStack Bare Metal Provisioning (ironic).
 # ['y', 'n']
@@ -95,11 +95,11 @@ CONFIG_DEBUG_MODE=n
 CONFIG_CONTROLLER_HOST=192.168.10.10
 
 # List the servers on which to install the Compute service.
-CONFIG_COMPUTE_HOSTS=192.168.10.10,192.168.10.11
+CONFIG_COMPUTE_HOSTS=192.168.10.10,192.168.10.12
 
 # List of servers on which to install the network service such as
 # Compute networking (nova network) or OpenStack Networking (neutron).
-CONFIG_NETWORK_HOSTS=192.168.10.10
+CONFIG_NETWORK_HOSTS=192.168.10.11
 
 # Specify 'y' if you want to use VMware vCenter as hypervisor and
 # storage; otherwise, specify 'n'. ['y', 'n']
@@ -820,7 +820,7 @@ CONFIG_NEUTRON_METADATA_PW=e62aee1547184167
 
 # Specify 'y' to install OpenStack Networking's Load-Balancing-
 # as-a-Service (LBaaS). ['y', 'n']
-CONFIG_LBAAS_INSTALL=n
+CONFIG_LBAAS_INSTALL=y
 
 # Specify 'y' to install OpenStack Networking's L3 Metering agent
 # ['y', 'n']
@@ -837,13 +837,13 @@ CONFIG_NEUTRON_VPNAAS=n
 # Comma-separated list of network-type driver entry points to be
 # loaded from the neutron.ml2.type_drivers namespace. ['local',
 # 'flat', 'vlan', 'gre', 'vxlan']
-CONFIG_NEUTRON_ML2_TYPE_DRIVERS=vxlan,flat
+CONFIG_NEUTRON_ML2_TYPE_DRIVERS=vxlan,flat,local
 
 # Comma-separated, ordered list of network types to allocate as
 # tenant networks. The 'local' value is only useful for single-box
 # testing and provides no connectivity between hosts. ['local',
 # 'vlan', 'gre', 'vxlan']
-CONFIG_NEUTRON_ML2_TENANT_NETWORK_TYPES=vxlan
+CONFIG_NEUTRON_ML2_TENANT_NETWORK_TYPES=vxlan,vlan,local
 
 # Comma-separated ordered list of networking mechanism driver entry
 # points to be loaded from the neutron.ml2.mechanism_drivers
@@ -861,7 +861,7 @@ CONFIG_NEUTRON_ML2_FLAT_NETWORKS=*
 # <physical_network> specifying physical_network names usable for VLAN
 # provider and tenant networks, as well as ranges of VLAN tags on each
 # available for allocation to tenant networks.
-CONFIG_NEUTRON_ML2_VLAN_RANGES=
+CONFIG_NEUTRON_ML2_VLAN_RANGES=physnet1:1:1000
 
 # Comma-separated list of <tun_min>:<tun_max> tuples enumerating
 # ranges of GRE tunnel IDs that are available for tenant-network
@@ -907,7 +907,7 @@ CONFIG_NEUTRON_LB_INTERFACE_MAPPINGS=
 # Networking Open vSwitch plugin. Each tuple in the list must be in
 # the format <physical_network>:<ovs_bridge>. Example: physnet1:br-
 # eth1,physnet2:br-eth2,physnet3:br-eth3
-CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=extnet:br-ex
+CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=extnet:br-ex,physnet1:br-eth2
 
 # Comma-separated list of colon-separated Open vSwitch
 # <bridge>:<interface> pairs. The interface will be added to the
@@ -918,7 +918,7 @@ CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=extnet:br-ex
 # issuing the following command: packstack --allinone --os-neutron-
 # ovs-bridge-mappings=ext-net:br-ex --os-neutron-ovs-bridge-interfaces
 # =br-ex:eth0
-CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:eth1
+CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:eth1,br-eth2:eth2
 
 # Comma-separated list of Open vSwitch bridges that must be created
 # and connected to interfaces in compute nodes when flat or vlan type
@@ -949,11 +949,11 @@ CONFIG_NEUTRON_OVS_VXLAN_UDP_PORT=4789
 
 # Password to use for the OpenStack File Share service (manila) to
 # access the database.
-CONFIG_MANILA_DB_PW=PW_PLACEHOLDER
+CONFIG_MANILA_DB_PW=1e22393196f14cbb
 
 # Password to use for the OpenStack File Share service (manila) to
 # authenticate with the Identity service.
-CONFIG_MANILA_KS_PW=PW_PLACEHOLDER
+CONFIG_MANILA_KS_PW=960a912bc89442a3
 
 # Backend for the OpenStack File Share service (manila); valid
 # options are: generic, netapp, glusternative, or glusternfs.
@@ -1148,7 +1148,7 @@ CONFIG_SWIFT_STORAGE_SIZE=2G
 
 # Password used by Orchestration service user to authenticate against
 # the database.
-CONFIG_HEAT_DB_PW=PW_PLACEHOLDER
+CONFIG_HEAT_DB_PW=69a011444722484d
 
 # Encryption key to use for authentication in the Orchestration
 # database (16, 24, or 32 chars).
@@ -1156,7 +1156,7 @@ CONFIG_HEAT_AUTH_ENC_KEY=3fa767f9ec5c4b79
 
 # Password to use for the Orchestration service to authenticate with
 # the Identity service.
-CONFIG_HEAT_KS_PW=PW_PLACEHOLDER
+CONFIG_HEAT_KS_PW=1a51e689ac9d4cc5
 
 # Specify 'y' to install the Orchestration CloudWatch API. ['y', 'n']
 CONFIG_HEAT_CLOUDWATCH_INSTALL=n
@@ -1173,7 +1173,7 @@ CONFIG_HEAT_DOMAIN_ADMIN=heat_admin
 
 # Password for the Identity domain administrative user for
 # Orchestration.
-CONFIG_HEAT_DOMAIN_PASSWORD=PW_PLACEHOLDER
+CONFIG_HEAT_DOMAIN_PASSWORD=19344a386c1b49af
 
 # Specify 'y' to provision for demo usage and testing. ['y', 'n']
 CONFIG_PROVISION_DEMO=n
@@ -1248,18 +1248,18 @@ CONFIG_RUN_TEMPEST_TESTS=smoke
 CONFIG_PROVISION_OVS_BRIDGE=y
 
 # Password to use for Gnocchi to access the database.
-CONFIG_GNOCCHI_DB_PW=PW_PLACEHOLDER
+CONFIG_GNOCCHI_DB_PW=3ad04263fb0a4396
 
 # Password to use for Gnocchi to authenticate with the Identity
 # service.
-CONFIG_GNOCCHI_KS_PW=PW_PLACEHOLDER
+CONFIG_GNOCCHI_KS_PW=39a02d9508514b24
 
 # Secret key for signing Telemetry service (ceilometer) messages.
 CONFIG_CEILOMETER_SECRET=9bb9d1558b9f45cf
 
 # Password to use for Telemetry to authenticate with the Identity
 # service.
-CONFIG_CEILOMETER_KS_PW=PW_PLACEHOLDER
+CONFIG_CEILOMETER_KS_PW=29ae7b75fb9d4112
 
 # Ceilometer service name. ['httpd', 'ceilometer']
 CONFIG_CEILOMETER_SERVICE_NAME=httpd
@@ -1283,15 +1283,15 @@ CONFIG_REDIS_PORT=6379
 
 # Password to use for Telemetry Alarming to authenticate with the
 # Identity service.
-CONFIG_AODH_KS_PW=PW_PLACEHOLDER
+CONFIG_AODH_KS_PW=c762850841b94b4f
 
 # Password to use for OpenStack Database-as-a-Service (trove) to
 # access the database.
-CONFIG_TROVE_DB_PW=PW_PLACEHOLDER
+CONFIG_TROVE_DB_PW=beceeeb60b8343cc
 
 # Password to use for OpenStack Database-as-a-Service to authenticate
 # with the Identity service.
-CONFIG_TROVE_KS_PW=PW_PLACEHOLDER
+CONFIG_TROVE_KS_PW=7f253623f8064096
 
 # User name to use when OpenStack Database-as-a-Service connects to
 # the Compute service.
@@ -1303,7 +1303,7 @@ CONFIG_TROVE_NOVA_TENANT=services
 
 # Password to use when OpenStack Database-as-a-Service connects to
 # the Compute service.
-CONFIG_TROVE_NOVA_PW=PW_PLACEHOLDER
+CONFIG_TROVE_NOVA_PW=7f253623f8064096
 
 # Password to use for OpenStack Data Processing (sahara) to access
 # the database.
